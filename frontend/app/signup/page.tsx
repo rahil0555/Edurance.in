@@ -12,21 +12,38 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
     });
-    if (error) setError(error.message);
-    else router.push("/dashboard");
+
+    if (error) {
+      setError(error.message);
+    } else {
+      router.push("/dashboard");
+    }
   };
 
   return (
-    <form onSubmit={handleSignup}>
+    <main>
       <h1>Signup</h1>
-      <input value={email} onChange={e => setEmail(e.target.value)} />
-      <input type="password" value={password} onChange={e => setPassword(e.target.value)} />
-      {error && <p>{error}</p>}
-      <button type="submit">Signup</button>
-    </form>
+      <form onSubmit={handleSignup}>
+        <input
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        {error && <p>{error}</p>}
+        <button type="submit">Create Account</button>
+      </form>
+    </main>
   );
 }

@@ -9,9 +9,21 @@ export default function DashboardPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) router.replace("/login");
+      if (!data.session) {
+        router.replace("/login");
+      }
     });
   }, [router]);
 
-  return <h1>Dashboard</h1>;
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
+  return (
+    <main>
+      <h1>Dashboard</h1>
+      <button onClick={handleLogout}>Logout</button>
+    </main>
+  );
 }
