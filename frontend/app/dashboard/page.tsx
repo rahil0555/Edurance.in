@@ -46,7 +46,20 @@ export default function DashboardPage() {
   return (
     <main>
       <h1>Dashboard</h1>
+
       <p>Class selected ✔</p>
+
+      {/* NEW BUTTON FOR STEP 3 */}
+      <button
+        onClick={() => router.push("/subject")}
+        style={{ marginTop: "12px" }}
+      >
+        Continue to Subjects
+      </button>
+
+      <br />
+      <br />
+
       <button onClick={handleLogout}>Logout</button>
     </main>
   );
