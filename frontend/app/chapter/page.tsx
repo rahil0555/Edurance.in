@@ -2,68 +2,66 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-
-const CHAPTERS: Record<string, string[]> = {
-  Science: [
-    "Nutrition in Plants",
-    "Respiration",
-    "Transportation in Animals",
-  ],
-  "Social Studies": [
-    "History of India",
-    "Geography Basics",
-    "Civics and Government",
-  ],
-  Physics: [
-    "Light – Reflection and Refraction",
-    "Electricity",
-    "Magnetism",
-  ],
-  Biology: [
-    "Life Processes",
-    "Control and Coordination",
-    "Reproduction",
-  ],
-};
+import Card from "@/components/Card";
 
 export default function ChapterPage() {
   const router = useRouter();
   const [subject, setSubject] = useState<string | null>(null);
-  const [chapters, setChapters] = useState<string[]>([]);
+
+  // Example chapters (static for now)
+  const chaptersBySubject: Record<string, string[]> = {
+    Science: [
+      "Motion and Force",
+      "Light",
+      "Human Body",
+      "Plants and Animals",
+    ],
+    "Social Studies": [
+      "History of India",
+      "Geography Basics",
+      "Civics and Government",
+    ],
+  };
 
   useEffect(() => {
-    const selectedSubject = sessionStorage.getItem("selected_subject");
+    const storedSubject = sessionStorage.getItem("selected_subject");
 
-    if (!selectedSubject) {
+    if (!storedSubject) {
       router.replace("/subject");
       return;
     }
 
-    setSubject(selectedSubject);
-    setChapters(CHAPTERS[selectedSubject] || []);
+    setSubject(storedSubject);
   }, [router]);
 
-  if (!subject) return <p>Loading chapters...</p>;
+  const handleChapterSelect = (chapter: string) => {
+    sessionStorage.setItem("selected_chapter", chapter);
+    router.push("/lesson");
+  };
+
+  if (!subject) return null;
 
   return (
-    <main>
-      <h1>{subject} — Chapters</h1>
+    <Card>
+      <h1 className="text-3xl font-bold mb-2">
+        {subject} — Chapters
+      </h1>
 
-      <ul>
-        {chapters.map((chapter) => (
-          <li key={chapter}>
-            <button
-              onClick={() => {
-                sessionStorage.setItem("selected_chapter", chapter);
-                router.replace("/lesson");
-              }}
-              style={{ margin: "8px" }}
-            >
-              {chapter}
-            </button>
-          </li>
+      <p className="text-gray-500 mb-6">
+        Choose a chapter to start learning
+      </p>
+
+      <div className="space-y-3">
+        {chaptersBySubject[subject]?.map((chapter) => (
+          <button
+            key={chapter}
+            onClick={() => handleChapterSelect(chapter)}
+            className="w-full text-left px-4 py-3 border rounded-lg hover:bg-gray-50 transition"
+          >
+            {chapter}
+          </button>
         ))}
-      </ul>
-    </main>
+      </div>
+    </Card>
   );
 }

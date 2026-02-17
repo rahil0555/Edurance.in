@@ -1,19 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import Card from "@/components/Card";
 
-export default function ClassSelectionPage() {
+const CLASSES = [6, 7, 8, 9, 10];
+
+export default function ClassPage() {
   const router = useRouter();
-  const [selectedClass, setSelectedClass] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const handleContinue = async () => {
-    if (!selectedClass) return;
+  useEffect(() => {
+    const checkUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    setLoading(true);
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
+      setLoading(false);
+    };
+
+    checkUser();
+  }, [router]);
+
+  const selectClass = async (classNumber: number) => {
     setError("");
 
     const {
@@ -21,52 +37,49 @@ export default function ClassSelectionPage() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      router.replace("/login");
+      setError("Not authenticated");
       return;
     }
 
     const { error } = await supabase
       .from("users")
-      .update({ selected_class: selectedClass })
+      .update({ selected_class: classNumber })
       .eq("id", user.id);
 
     if (error) {
       setError(error.message);
-      setLoading(false);
       return;
     }
 
-    router.replace("/dashboard");
+    router.push("/subject");
   };
 
-  return (
-    <main>
-      <h1>Select Your Class</h1>
+  if (loading) return <p>Loading…</p>;
 
-      <div>
-        {[5, 6, 7, 8, 9, 10].map((cls) => (
+  return (
+    <Card>
+      <h1 className="text-3xl font-bold mb-2">Select your class</h1>
+      <p className="text-gray-500 mb-6">
+        This helps us personalise your lessons
+      </p>
+
+      <div className="space-y-3">
+        {CLASSES.map((cls) => (
           <button
             key={cls}
-            onClick={() => setSelectedClass(cls)}
-            style={{
-              padding: "12px",
-              margin: "8px",
-              background: selectedClass === cls ? "black" : "#ddd",
-              color: selectedClass === cls ? "white" : "black",
-            }}
+            onClick={() => selectClass(cls)}
+            className="w-full border border-gray-200 rounded-lg px-4 py-3 text-left hover:bg-gray-100 transition"
           >
             Class {cls}
           </button>
         ))}
       </div>
 
-      {error && <p>{error}</p>}
-
-      <br />
-
-      <button onClick={handleContinue} disabled={loading || !selectedClass}>
-        {loading ? "Saving..." : "Continue"}
-      </button>
-    </main>
+      {error && (
+        <p className="text-red-500 text-sm mt-4">
+          {error}
+        </p>
+      )}
+    </Card>
   );
 }
