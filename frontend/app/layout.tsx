@@ -12,9 +12,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-gray-50 text-gray-900">
-        <div className="min-h-screen flex items-center justify-center">
-          {children}
+      <body>
+        {/* Global cinematic container */}
+        <div className="min-h-screen w-full flex items-center justify-center px-4">
+          {/* App shell */}
+          <div className="w-full max-w-7xl motion-fade-in">
+            {children}
+          </div>
         </div>
       </body>
     </html>
