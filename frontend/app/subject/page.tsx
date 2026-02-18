@@ -16,7 +16,6 @@ export default function SubjectPage() {
       return;
     }
 
-    // Extract class number from "Class 5"
     const classNumber = parseInt(cls.replace("Class ", ""));
 
     if (classNumber >= 5 && classNumber <= 9) {
@@ -28,13 +27,28 @@ export default function SubjectPage() {
     setLoading(false);
   }, [router]);
 
-  if (loading) return <p>Loading subjects...</p>;
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center text-gray-400">
+        Loading subjects…
+      </div>
+    );
+  }
 
   return (
-    <main style={{ padding: 24 }}>
-      <h1>Select Subject</h1>
+    <div className="w-full px-6 py-16">
+      {/* Header */}
+      <div className="mb-14 text-center">
+        <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
+          Select Subject
+        </h1>
+        <p className="mt-3 text-gray-400">
+          Choose what you want to learn today.
+        </p>
+      </div>
 
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+      {/* Grid */}
+      <div className="max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
         {subjects.map((subject) => (
           <button
             key={subject}
@@ -42,16 +56,19 @@ export default function SubjectPage() {
               sessionStorage.setItem("selected_subject", subject);
               router.push("/chapter");
             }}
-            style={{
-              padding: "12px",
-              border: "1px solid #ccc",
-              borderRadius: 4,
-            }}
+            className="
+              glass hover-lift
+              p-8 rounded-xl
+              text-lg font-medium
+              transition
+              hover:shadow-[0_0_30px_rgba(120,160,255,0.35)]
+              hover:scale-[1.03]
+            "
           >
             {subject}
           </button>
         ))}
       </div>
-    </main>
+    </div>
   );
 }

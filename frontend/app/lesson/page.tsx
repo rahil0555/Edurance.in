@@ -12,9 +12,11 @@ export default function LessonPage() {
   const [current, setCurrent] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [direction, setDirection] = useState<"next" | "prev">("next");
 
   const containerRef = useRef<HTMLDivElement>(null);
 
+  /* ---------- LOAD LESSON ---------- */
   useEffect(() => {
     async function loadLesson() {
       const classLevel = sessionStorage.getItem("selected_class");
@@ -40,35 +42,53 @@ export default function LessonPage() {
     loadLesson();
   }, []);
 
-  /* ---------- FULLSCREEN HANDLERS ---------- */
+  /* ---------- FULLSCREEN ---------- */
   const enterFullscreen = () => {
-    if (!containerRef.current) return;
-    containerRef.current.requestFullscreen();
+    containerRef.current?.requestFullscreen();
     setIsFullscreen(true);
   };
 
   const exitFullscreen = () => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    }
+    document.exitFullscreen();
     setIsFullscreen(false);
   };
 
   useEffect(() => {
-    const onFullscreenChange = () => {
+    const onChange = () =>
       setIsFullscreen(!!document.fullscreenElement);
+
+    document.addEventListener("fullscreenchange", onChange);
+    return () =>
+      document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  /* ---------- KEYBOARD ---------- */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") next();
+      if (e.key === "ArrowLeft") prev();
+      if (e.key.toLowerCase() === "f") {
+        isFullscreen ? exitFullscreen() : enterFullscreen();
+      }
     };
 
-    document.addEventListener(
-      "fullscreenchange",
-      onFullscreenChange
-    );
-    return () =>
-      document.removeEventListener(
-        "fullscreenchange",
-        onFullscreenChange
-      );
-  }, []);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  const next = () => {
+    if (current < slides.length - 1) {
+      setDirection("next");
+      setCurrent((c) => c + 1);
+    }
+  };
+
+  const prev = () => {
+    if (current > 0) {
+      setDirection("prev");
+      setCurrent((c) => c - 1);
+    }
+  };
 
   if (loading) {
     return (
@@ -92,9 +112,9 @@ export default function LessonPage() {
   return (
     <div
       ref={containerRef}
-      className="w-full min-h-screen flex flex-col items-center justify-center px-6"
+      className="w-full min-h-screen flex flex-col items-center justify-center px-6 overflow-hidden"
     >
-      {/* Progress bar */}
+      {/* Progress */}
       <div className="fixed top-0 left-0 w-full h-[3px] bg-white/5 z-50">
         <div
           className="h-full bg-gradient-to-r from-blue-400 to-purple-400 transition-all duration-500"
@@ -102,11 +122,9 @@ export default function LessonPage() {
         />
       </div>
 
-      {/* Fullscreen toggle */}
+      {/* Fullscreen */}
       <button
-        onClick={
-          isFullscreen ? exitFullscreen : enterFullscreen
-        }
+        onClick={isFullscreen ? exitFullscreen : enterFullscreen}
         className="
           fixed top-4 right-4 z-50
           px-3 py-2 rounded-lg
@@ -116,28 +134,38 @@ export default function LessonPage() {
           hover:bg-white/10 hover:text-white
         "
       >
-        {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+        {isFullscreen ? "Exit" : "Fullscreen"}
       </button>
 
-      {/* Slide Canvas */}
-      <div className="w-full max-w-5xl aspect-[16/9] glass p-10 flex flex-col justify-center">
-        <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mb-6">
+      {/* Slide */}
+      <div
+        key={current}
+        className={`
+          w-full max-w-5xl aspect-[16/9]
+          glass p-10 flex flex-col justify-center
+          transition-all duration-500
+          ${
+            direction === "next"
+              ? "animate-slide-in-right"
+              : "animate-slide-in-left"
+          }
+        `}
+      >
+        <h1 className="text-3xl md:text-4xl font-semibold mb-6">
           {slide.title}
         </h1>
 
         <ul className="space-y-4 text-lg text-gray-300">
           {slide.content.map((point, i) => (
-            <li key={i} className="leading-relaxed">
-              {point}
-            </li>
+            <li key={i}>{point}</li>
           ))}
         </ul>
       </div>
 
       {/* Controls */}
-      <div className="mt-8 flex items-center gap-6">
+      <div className="mt-8 flex items-center gap-6 print:hidden">
         <button
-          onClick={() => setCurrent((c) => Math.max(0, c - 1))}
+          onClick={prev}
           disabled={current === 0}
           className="
             px-5 py-2 rounded-lg
@@ -148,7 +176,7 @@ export default function LessonPage() {
             disabled:opacity-40
           "
         >
-          Previous
+          ← Previous
         </button>
 
         <span className="text-sm text-gray-400">
@@ -156,11 +184,7 @@ export default function LessonPage() {
         </span>
 
         <button
-          onClick={() =>
-            setCurrent((c) =>
-              Math.min(slides.length - 1, c + 1)
-            )
-          }
+          onClick={next}
           disabled={current === slides.length - 1}
           className="
             px-5 py-2 rounded-lg
@@ -172,7 +196,7 @@ export default function LessonPage() {
             disabled:opacity-40
           "
         >
-          Next
+          Next →
         </button>
       </div>
     </div>
