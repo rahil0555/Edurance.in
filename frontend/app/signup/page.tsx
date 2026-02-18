@@ -21,27 +21,33 @@ export default function SignupPage() {
 
     if (error) {
       setError(error.message);
-    } else {
-      router.push("/dashboard");
+      return;
     }
+
+    // ✅ Signup → Login (as requested)
+    router.replace("/login");
   };
 
   return (
-    <main>
+    <main style={{ padding: 24 }}>
       <h1>Signup</h1>
+
       <form onSubmit={handleSignup}>
         <input
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
+
         <input
           type="password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
+
         {error && <p>{error}</p>}
+
         <button type="submit">Create Account</button>
       </form>
     </main>

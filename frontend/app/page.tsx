@@ -1,38 +1,31 @@
-"use client";
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+export default async function HomePage() {
+  const cookieStore = cookies();
 
-export default function Home() {
-  const router = useRouter();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+      },
+    }
+  );
 
-  useEffect(() => {
-    const run = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
+  // ✅ Logged in → dashboard
+  if (user) {
+    redirect("/dashboard");
+  }
 
-      const { data } = await supabase
-        .from("users")
-        .select("selected_class")
-        .eq("id", user.id)
-        .single();
-
-      if (!data || data.selected_class === null) {
-        router.replace("/class");
-      } else {
-        router.replace("/dashboard");
-      }
-    };
-
-    run();
-  }, [router]);
-
-  return <p>Redirecting...</p>;
+  // ❌ Not logged in → login
+  redirect("/login");
 }

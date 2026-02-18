@@ -1,112 +1,82 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 
-/* -------------------- SUPABASE -------------------- */
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-/* -------------------- GAMMA HELPER -------------------- */
-async function createGammaPresentation(slides: any[]) {
-  if (!process.env.GAMMA_API_KEY) {
-    throw new Error("GAMMA_API_KEY missing");
-  }
-
-  const formattedText = slides
-    .map(
-      (s) =>
-        `## ${s.title}\n${s.content
-          .map((c: string) => `- ${c}`)
-          .join("\n")}`
-    )
-    .join("\n\n");
-
-  const res = await fetch("https://api.gamma.app/api/presentations", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.GAMMA_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      text: formattedText,
-      theme: "educational",
-      autoFormat: true,
-    }),
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    console.error("Gamma error:", data);
-    throw new Error("Gamma presentation failed");
-  }
-
-  return data.presentationUrl;
+/* ---------- helpers ---------- */
+function getSlideCount(classLevel: string) {
+  const n = parseInt(classLevel.replace("Class ", ""));
+  if (n <= 6) return 5;
+  if (n === 7) return 6;
+  if (n === 8 || n === 9) return 7;
+  return 8; // Class 10
 }
 
-/* -------------------- API HANDLER -------------------- */
+function extractJsonArray(text: string) {
+  const start = text.indexOf("[");
+  const end = text.lastIndexOf("]");
+  if (start === -1 || end === -1) return null;
+  try {
+    return JSON.parse(text.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+}
+
+/* ---------- route ---------- */
 export async function POST(req: Request) {
   try {
-    const authHeader = req.headers.get("authorization");
+    const cookieStore = cookies();
 
-    if (!authHeader) {
-      return NextResponse.json(
-        { error: "Missing Authorization header" },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.replace("Bearer ", "");
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+        },
+      }
+    );
 
     const {
       data: { user },
-      error: authError,
-    } = await supabaseAdmin.auth.getUser(token);
+    } = await supabase.auth.getUser();
 
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { classLevel, subject, chapter } = await req.json();
 
     if (!classLevel || !subject || !chapter) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing class / subject / chapter" },
         { status: 400 }
       );
     }
 
-    /* ---------- 1️⃣ CHECK DB ---------- */
-    const { data: existingLesson } = await supabaseAdmin
+    /* ---------- check cache ---------- */
+    const { data: existing } = await supabase
       .from("lessons")
-      .select("slides, presentation_url")
+      .select("slides")
       .eq("user_id", user.id)
       .eq("class", classLevel)
       .eq("subject", subject)
       .eq("chapter", chapter)
       .single();
 
-    if (existingLesson) {
+    if (existing?.slides?.length) {
       return NextResponse.json({
-        slides: existingLesson.slides,
-        presentationUrl: existingLesson.presentation_url,
+        slides: existing.slides,
         cached: true,
       });
     }
 
-    /* ---------- 2️⃣ CALL OPENAI ---------- */
-    if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json(
-        { error: "OPENAI_API_KEY missing" },
-        { status: 500 }
-      );
-    }
+    /* ---------- openai ---------- */
+    const slideCount = getSlideCount(classLevel);
 
-    const openaiRes = await fetch(
+    const aiRes = await fetch(
       "https://api.openai.com/v1/chat/completions",
       {
         method: "POST",
@@ -116,60 +86,77 @@ export async function POST(req: Request) {
         },
         body: JSON.stringify({
           model: "gpt-3.5-turbo",
+          temperature: 0.3,
           messages: [
             {
               role: "system",
               content:
-                "You are a strict JSON API. Return ONLY valid JSON. No markdown.",
+                "You are a strict JSON generator. Return ONLY valid JSON. No markdown, no explanation.",
             },
             {
               role: "user",
-              content: `Create lesson slides in JSON for:
+              content: `
+Create EXACTLY ${slideCount} lesson slides for a student.
+
 Class: ${classLevel}
 Subject: ${subject}
 Chapter: ${chapter}
 
-Format:
+Rules:
+- Use age-appropriate language for ${classLevel}
+- Each slide must have:
+  - title
+  - 4 to 6 detailed bullet points
+- Bullets must be full explanatory sentences
+- Slides must follow this order:
+  1. Introduction / overview
+  2. Definition
+  3. Explanation
+  4. Examples
+  5. Importance / applications
+  6+. Extra explanation or recap (for higher classes)
+
+Output format (STRICT):
 [
-  { "title": "Slide title", "content": ["Point 1", "Point 2"] }
-]`,
+  {
+    "title": "Slide title",
+    "content": [
+      "Sentence 1.",
+      "Sentence 2."
+    ]
+  }
+]
+              `,
             },
           ],
-          temperature: 0.2,
         }),
       }
     );
 
-    const openaiData = await openaiRes.json();
+    const aiData = await aiRes.json();
+    const raw = aiData?.choices?.[0]?.message?.content;
 
-    const raw = openaiData?.choices?.[0]?.message?.content;
+    const slides = raw ? extractJsonArray(raw) : null;
 
-    if (!raw) {
+    if (!Array.isArray(slides) || slides.length !== slideCount) {
+      console.error("AI RAW OUTPUT:", raw);
       return NextResponse.json(
-        { error: "Empty AI response" },
+        { error: "AI returned invalid slides" },
         { status: 500 }
       );
     }
 
-    const slides = JSON.parse(raw);
-
-    /* ---------- 3️⃣ GAMMA ---------- */
-    const presentationUrl = await createGammaPresentation(slides);
-
-    /* ---------- 4️⃣ SAVE ---------- */
-    await supabaseAdmin.from("lessons").insert({
+    /* ---------- save ---------- */
+    await supabase.from("lessons").insert({
       user_id: user.id,
       class: classLevel,
       subject,
       chapter,
       slides,
-      presentation_url: presentationUrl,
     });
 
-    /* ---------- 5️⃣ RETURN ---------- */
     return NextResponse.json({
       slides,
-      presentationUrl,
       cached: false,
     });
   } catch (err: any) {

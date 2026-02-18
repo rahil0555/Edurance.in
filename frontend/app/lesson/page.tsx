@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
 
 type Slide = {
   title: string;
@@ -10,140 +9,76 @@ type Slide = {
 
 export default function LessonPage() {
   const [slides, setSlides] = useState<Slide[]>([]);
-  const [presentationUrl, setPresentationUrl] = useState<string | null>(null);
-  const [currentSlide, setCurrentSlide] = useState(0);
+  const [current, setCurrent] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
-    const loadLesson = async () => {
-      try {
-        /* 1️⃣ Get logged-in user */
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+    async function loadLesson() {
+      const classLevel = sessionStorage.getItem("selected_class");
+      const subject = sessionStorage.getItem("selected_subject");
+      const chapter = sessionStorage.getItem("selected_chapter");
 
-        if (!user) {
-          setError("Not authenticated");
-          setLoading(false);
-          return;
-        }
-
-        /* 2️⃣ Get selected class */
-        const { data: userRow } = await supabase
-          .from("users")
-          .select("selected_class")
-          .eq("id", user.id)
-          .single();
-
-        if (!userRow) {
-          setError("User data not found");
-          setLoading(false);
-          return;
-        }
-
-        /* 3️⃣ Get subject & chapter */
-        const subject = sessionStorage.getItem("selected_subject");
-        const chapter = sessionStorage.getItem("selected_chapter");
-
-        if (!subject || !chapter) {
-          setError("Missing subject or chapter");
-          setLoading(false);
-          return;
-        }
-
-        /* 4️⃣ Call backend API */
-        const res = await fetch("/api/lesson", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: user.id,
-            classLevel: userRow.selected_class,
-            subject,
-            chapter,
-          }),
-        });
-
-        const json = await res.json();
-
-        if (!res.ok) {
-          setError(json.error || "Lesson generation failed");
-          setLoading(false);
-          return;
-        }
-
-        /* 5️⃣ Save response */
-        setSlides(json.slides || []);
-        setPresentationUrl(json.presentationUrl || null);
+      if (!classLevel || !subject || !chapter) {
         setLoading(false);
-      } catch (err) {
-        console.error(err);
-        setError("Unexpected error");
-        setLoading(false);
+        return;
       }
-    };
+
+      const res = await fetch("/api/lesson", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ classLevel, subject, chapter }),
+      });
+
+      const data = await res.json();
+      setSlides(data.slides || []);
+      setLoading(false);
+    }
 
     loadLesson();
   }, []);
 
-  if (loading) return <p>Generating lesson…</p>;
-  if (error) return <p>{error}</p>;
-  if (slides.length === 0) return <p>No slides available</p>;
+  if (loading) return <p className="p-6">Loading lesson…</p>;
 
-  const slide = slides[currentSlide];
+  if (!slides.length)
+    return <p className="p-6">No slides found.</p>;
+
+  const slide = slides[current];
 
   return (
-    <main style={{ maxWidth: "800px", margin: "40px auto" }}>
-      <h1>Lesson</h1>
+    <div className="p-6 max-w-3xl mx-auto">
+      <h1 className="text-2xl font-bold mb-4">{slide.title}</h1>
 
-      {/* 🎥 Gamma Presentation */}
-      {presentationUrl && (
-        <div style={{ marginBottom: "30px" }}>
-          <h2>Presentation</h2>
-          <iframe
-            src={presentationUrl}
-            style={{ width: "100%", height: "600px", border: "1px solid #ddd" }}
-            allowFullScreen
-          />
-        </div>
-      )}
+      <ul className="list-disc pl-6 space-y-2 mb-6">
+        {slide.content.map((point, i) => (
+          <li key={i}>{point}</li>
+        ))}
+      </ul>
 
-      {/* 📘 Slide Viewer */}
-      <div
-        style={{
-          border: "1px solid #ddd",
-          padding: "20px",
-          borderRadius: "8px",
-        }}
-      >
-        <h2>{slide.title}</h2>
-        <ul>
-          {slide.content.map((point, i) => (
-            <li key={i}>{point}</li>
-          ))}
-        </ul>
-      </div>
-
-      {/* ⬅️➡️ Navigation */}
-      <div style={{ marginTop: "20px" }}>
+      <div className="flex items-center gap-4">
         <button
-          onClick={() => setCurrentSlide((s) => s - 1)}
-          disabled={currentSlide === 0}
+          onClick={() => setCurrent((c) => Math.max(0, c - 1))}
+          disabled={current === 0}
+          className="px-4 py-2 border rounded disabled:opacity-50"
         >
           Previous
         </button>
 
-        <span style={{ margin: "0 12px" }}>
-          Slide {currentSlide + 1} of {slides.length}
+        <span>
+          Slide {current + 1} of {slides.length}
         </span>
 
         <button
-          onClick={() => setCurrentSlide((s) => s + 1)}
-          disabled={currentSlide === slides.length - 1}
+          onClick={() =>
+            setCurrent((c) =>
+              Math.min(slides.length - 1, c + 1)
+            )
+          }
+          disabled={current === slides.length - 1}
+          className="px-4 py-2 border rounded disabled:opacity-50"
         >
           Next
         </button>
       </div>
-    </main>
+    </div>
   );
 }

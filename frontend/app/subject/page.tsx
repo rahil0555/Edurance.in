@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
 
 export default function SubjectPage() {
   const router = useRouter();
@@ -10,58 +9,43 @@ export default function SubjectPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadSubjects = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    const cls = sessionStorage.getItem("selected_class");
 
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
+    if (!cls) {
+      router.replace("/class");
+      return;
+    }
 
-      const { data } = await supabase
-        .from("users")
-        .select("selected_class")
-        .eq("id", user.id)
-        .single();
+    // Extract class number from "Class 5"
+    const classNumber = parseInt(cls.replace("Class ", ""));
 
-      if (!data || data.selected_class === null) {
-        router.replace("/class");
-        return;
-      }
+    if (classNumber >= 5 && classNumber <= 9) {
+      setSubjects(["Science", "Social Studies"]);
+    } else if (classNumber === 10) {
+      setSubjects(["Physics", "Biology", "Social Studies"]);
+    }
 
-      const cls = data.selected_class;
-
-      if (cls >= 5 && cls <= 9) {
-        setSubjects(["Science", "Social Studies"]);
-      } else if (cls === 10) {
-        setSubjects(["Physics", "Biology", "Social Studies"]);
-      }
-
-      setLoading(false);
-    };
-
-    loadSubjects();
+    setLoading(false);
   }, [router]);
 
   if (loading) return <p>Loading subjects...</p>;
 
   return (
-    <main>
+    <main style={{ padding: 24 }}>
       <h1>Select Subject</h1>
 
-      <div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         {subjects.map((subject) => (
           <button
             key={subject}
             onClick={() => {
               sessionStorage.setItem("selected_subject", subject);
-              router.replace("/chapter");
+              router.push("/chapter");
             }}
             style={{
               padding: "12px",
-              margin: "8px",
+              border: "1px solid #ccc",
+              borderRadius: 4,
             }}
           >
             {subject}
