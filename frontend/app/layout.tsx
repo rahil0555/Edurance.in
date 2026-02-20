@@ -1,4 +1,5 @@
 import "./globals.css";
+import SystemProgressBar from "@/components/SystemProgressBar";
 
 export const metadata = {
   title: "Edurance",
@@ -13,12 +14,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {/* Global cinematic container */}
-        <div className="min-h-screen w-full flex items-center justify-center px-4">
-          {/* App shell */}
-          <div className="w-full max-w-7xl motion-fade-in">
-            {children}
-          </div>
+        <SystemProgressBar />
+
+        <div className="min-h-screen w-full px-6 py-6 fade-up">
+          {children}
         </div>
       </body>
     </html>
