@@ -47,7 +47,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { classLevel, subject, chapter } = await req.json();
+    const body = await req.json();
+
+let { classLevel, subject, chapter } = body;
+
+/* ✅ NORMALIZE CLASS */
+if (typeof classLevel === "string") {
+  classLevel = Number(classLevel.replace("Class", "").trim());
+}
+
+if (!classLevel || !subject || !chapter) {
+  return NextResponse.json(
+    { error: "Missing or invalid class / subject / chapter" },
+    { status: 400 }
+  );
+}
 
     if (!classLevel || !subject || !chapter) {
       return NextResponse.json(

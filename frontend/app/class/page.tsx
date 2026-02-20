@@ -69,11 +69,15 @@ export default function ClassSelectionPage() {
     }
 
     await supabase
-      .from("users")
-      .update({ selected_class: selectedClass })
-      .eq("id", user.id);
+  .from("users")
+  .update({ selected_class: selectedClass })
+  .eq("id", user.id);
 
-    router.push("/subject");
+/* ✅ ADD THIS LINE */
+sessionStorage.setItem("selected_class", selectedClass);
+
+router.push("/subject");
+
   };
 
   return (
