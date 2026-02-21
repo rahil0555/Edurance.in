@@ -4,7 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-const CLASSES = ["Class 5", "Class 6", "Class 7", "Class 8", "Class 9", "Class 10"];
+const CLASSES = [
+  "Class 5",
+  "Class 6",
+  "Class 7",
+  "Class 8",
+  "Class 9",
+  "Class 10",
+];
 
 export default function ClassSelectionPage() {
   const router = useRouter();
@@ -59,6 +66,9 @@ export default function ClassSelectionPage() {
   const selectClass = async () => {
     const selectedClass = CLASSES[activeIndex];
 
+    // ✅ TEMP DEBUG LOG (VERY IMPORTANT)
+    console.log("CLASS SELECTED:", selectedClass);
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -69,15 +79,14 @@ export default function ClassSelectionPage() {
     }
 
     await supabase
-  .from("users")
-  .update({ selected_class: selectedClass })
-  .eq("id", user.id);
+      .from("users")
+      .update({ selected_class: selectedClass })
+      .eq("id", user.id);
 
-/* ✅ ADD THIS LINE */
-sessionStorage.setItem("selected_class", selectedClass);
+    // ✅ SOURCE OF TRUTH FOR NAVIGATION
+    sessionStorage.setItem("selected_class", selectedClass);
 
-router.push("/subject");
-
+    router.push("/subject");
   };
 
   return (
@@ -108,7 +117,6 @@ router.push("/subject");
       >
         {CLASSES.map((cls, index) => {
           const offset = index - activeIndex;
-
           const scale = offset === 0 ? 1.1 : 0.85;
           const opacity = Math.abs(offset) > 2 ? 0 : 0.6;
           const translateX = offset * 220;
@@ -121,18 +129,14 @@ router.push("/subject");
                 ${offset === 0 ? "z-20" : "z-10"}
               `}
               style={{
-                transform: `
-                  translateX(${translateX}px)
-                  scale(${scale})
-                `,
+                transform: `translateX(${translateX}px) scale(${scale})`,
                 opacity,
               }}
             >
               <div
-                className={`
-                  glass px-10 py-6 text-xl font-medium
-                  ${offset === 0 ? "energy" : ""}
-                `}
+                className={`glass px-10 py-6 text-xl font-medium ${
+                  offset === 0 ? "energy" : ""
+                }`}
               >
                 {cls}
               </div>
